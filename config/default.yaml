@@ -1,0 +1,10 @@
+server:
+  host: localhost
+  port: 8085
+
+database:
+  host: localhost:5432
+  db_name: deliveries
+  username: username
+  password: password
+  max_size: 4
