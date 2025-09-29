@@ -1,18 +1,31 @@
 use chrono::{DateTime, Utc};
+use strum_macros::{Display, EnumString};
 
 pub struct DeliveryEntity {
     pub delivery_id: String,
     pub order_id: String,
     pub address: String,
     pub status: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(EnumString, Display)]
+pub enum DeliveryStatus {
+    Pending, InProgress, Delivered
+}
+
+impl DeliveryStatus {
+    pub fn to_uppercase_string(&self) -> String {
+        self.to_string().clone().to_uppercase()
+    }
 }
 
 pub enum OutboxMessageType {
     Delivery,
 }
 
+#[derive(EnumString, Display)]
 pub enum OutboxMessageStatus {
     New,
     Processed,

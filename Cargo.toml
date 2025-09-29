@@ -13,3 +13,8 @@ deadpool-postgres = "0.12"
 refinery = { version = "0.8", features = ["tokio-postgres"] }
 config = "0.15.17"
 chrono = "0.4.42"
+anyhow = "1.0.100"
+uuid = { version = "1.18.1", features = ["v4"] }
+strum = "0.27"
+strum_macros = "0.27"
+thiserror = "2.0.16"

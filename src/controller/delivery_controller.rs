@@ -13,27 +13,10 @@ pub fn init_router() -> Router {
 async fn create_delivery(
     Json(payload): Json<CreateDeliveryRequest>
 ) -> Result<Json<CreateDeliveryResponse>, (StatusCode, Json<ErrorResponseDto>)> {
-    if !validate(&payload) {
-        return Err((
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(ErrorResponseDto {
-                error: "VALIDATION FAILED",
-                message: "".into()
-            })
-        ));
-    }
 
-    Ok(Json(CreateDeliveryResponse {
-      
-    }))
 }
 
 async fn get_delivery_by_id(Path(delivery_id): Path<String>) -> Json<CreateDeliveryResponse> {
 
 }
 
-fn validate(issue_type_payload: &CreateDeliveryRequest) -> bool {
-    let name_ok = !issue_type_payload.name.trim().is_empty();
-    let desc_ok = !issue_type_payload.description.trim().is_empty();
-    name_ok && desc_ok
-}

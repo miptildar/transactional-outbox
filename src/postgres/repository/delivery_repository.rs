@@ -1,15 +1,16 @@
 use crate::postgres::connection::PgConnectionPool;
+use std::sync::Arc;
 
-pub struct DeliveryRepository<'a> {
-    pool: &'a PgConnectionPool
+pub struct DeliveryRepository {
+    pool: Arc<PgConnectionPool>,
 }
 
-impl<'a> DeliveryRepository<'a> {
-    pub async fn save() {
-
+impl DeliveryRepository {
+    pub fn new(pool: Arc<PgConnectionPool>) -> Self {
+        Self { pool }
     }
 
-    pub async fn get_by_id(id: &String) {
+    pub async fn save() {}
 
-    }
+    pub async fn get_by_id(id: &String) {}
 }

@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct CreateDeliveryRequest {
-    pub order_id: String,
-    pub address: String,
-    pub items: Vec<OrderItemDto>
+    pub order_id: Option<String>,
+    pub address: Option<String>,
+    pub items: Option<Vec<OrderItemDto>>
 }
 
 #[derive(Serialize)]

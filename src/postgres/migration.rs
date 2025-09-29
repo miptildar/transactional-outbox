@@ -1,12 +1,21 @@
+use crate::postgres::connection::PgConnectionPool;
 use refinery::embed_migrations;
-use tokio_postgres::Client;
+use std::ops::DerefMut;
+
+embed_migrations!("./migrations");
 
 pub struct MigrationRunner;
 
 impl MigrationRunner {
-    pub async fn run_with_single_connection(
-        
-    ) {
-        
+    pub async fn run_migrations(
+        pool: &PgConnectionPool
+    ) -> anyhow::Result<()> {
+        let mut client = pool.get_connection().await?;
+
+        migrations::runner()
+            .run_async(&mut **client)
+            .await?;
+
+        Ok(())
     }
 }
