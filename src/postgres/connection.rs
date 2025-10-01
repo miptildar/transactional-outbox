@@ -1,14 +1,15 @@
 use crate::config::app_config::PostgresEnvConfig;
-use deadpool_postgres::{Config, Manager, Object, Pool, PoolError, Runtime};
-use tokio_postgres::{ NoTls};
 use crate::postgres::migration::migrations;
+use deadpool_postgres::{Config, Object, Pool, PoolError, Runtime};
+use tokio_postgres::NoTls;
 
 pub struct PgConnectionPool {
     pool: Pool,
 }
 
 impl PgConnectionPool {
-    pub async fn initialize(&mut self, environment_config: &PostgresEnvConfig) -> Result<(), deadpool_postgres::CreatePoolError> {
+
+    pub async fn new(environment_config: &PostgresEnvConfig) -> Result<Self, deadpool_postgres::CreatePoolError> {
         let mut pool_config = Config::new();
         pool_config.host = Some(environment_config.host.clone());
         pool_config.dbname = Some(environment_config.db_name.clone());
@@ -16,8 +17,14 @@ impl PgConnectionPool {
         pool_config.password = Some(environment_config.password.clone());
         pool_config.pool = Some(deadpool_postgres::PoolConfig::new(environment_config.max_size));
 
-        self.pool = pool_config.create_pool(Some(Runtime::Tokio1), NoTls)?;
-        Ok(())
+        let pool = pool_config.create_pool(Some(Runtime::Tokio1), NoTls);
+        if let Result::Err(error) = pool {
+            panic!("Error creating connection pool: {}", error);
+        }
+
+        Ok(PgConnectionPool {
+            pool: pool?,
+        })
     }
 
     pub async fn get_connection(&self) -> Result<Object, PoolError> {

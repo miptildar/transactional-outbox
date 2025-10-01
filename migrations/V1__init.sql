@@ -1,5 +1,5 @@
 CREATE TABLE deliveries (
-                            delivery_id SERIAL PRIMARY KEY,
+                            delivery_id UUID PRIMARY KEY,
                             order_id BIGINT NOT NULL,
                             address TEXT NOT NULL,
                             status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
@@ -7,7 +7,7 @@ CREATE TABLE deliveries (
 );
 
 CREATE TABLE delivery_items (
-                                id SERIAL PRIMARY KEY,
+                                id UUID PRIMARY KEY,
                                 delivery_id BIGINT NOT NULL REFERENCES deliveries(delivery_id) ON DELETE CASCADE,
                                 sku VARCHAR(50) NOT NULL,
                                 quantity INT NOT NULL

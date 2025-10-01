@@ -8,7 +8,7 @@ pub struct CreateDeliveryRequest {
 }
 
 #[derive(Serialize)]
-pub struct CreateDeliveryResponse {
+pub struct DeliveryResponse {
     pub delivery_id: String,
     pub order_id: String,
     pub address: String,

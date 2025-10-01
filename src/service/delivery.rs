@@ -1,10 +1,11 @@
-use crate::model::dto::{CreateDeliveryRequest, CreateDeliveryResponse};
+use crate::controller::dto::{CreateDeliveryRequest, DeliveryResponse};
 use crate::postgres::connection::PgConnectionPool;
-use crate::postgres::repository::delivery_repository::DeliveryRepository;
-use crate::postgres::repository::outbox_repository::OutboxRepository;
+use crate::postgres::model::entity::{DeliveryEntity, DeliveryStatus};
+use crate::postgres::repository::delivery::DeliveryRepository;
+use crate::postgres::repository::outbox::OutboxRepository;
+use crate::service::mapper::entity_to_dto;
 use std::sync::Arc;
 use uuid::Uuid;
-use crate::model::entity::{DeliveryEntity, DeliveryStatus};
 
 pub struct DeliveryService {
     delivery_repo: DeliveryRepository,
@@ -24,7 +25,7 @@ impl DeliveryService {
     pub async fn create_delivery(
         &self,
         request: CreateDeliveryRequest,
-    ) -> Result<CreateDeliveryResponse, ServiceError> {
+    ) -> Result<DeliveryResponse, ServiceError> {
         if (!Self::validate(&request)) {
             return Err(ServiceError::InvalidDto);
         }
@@ -35,18 +36,31 @@ impl DeliveryService {
             address: request.address.unwrap().clone(),
             status: DeliveryStatus::Pending.to_uppercase_string(),
             created_at: None,
-            updated_at: None
+            updated_at: None,
         };
-        
-        self.delivery_repo.save();
 
-        Ok(CreateDeliveryResponse {
-            delivery_id: "new-delivery-id".to_string(),
-            order_id: request.order_id,
-            address: request.address,
-            status: "PENDING".to_string(),
-            items: request.items,
-        })
+        let result = self.delivery_repo.save(delivery_entity).await;
+        if (result.is_err()) {
+            return Err(ServiceError::DatabaseError(
+                result.err().unwrap().to_string(),
+            ));
+        }
+
+        let actual_entity = &result.unwrap();
+
+        Ok(entity_to_dto(&actual_entity))
+    }
+
+    pub async fn get_delivery_by_id(
+        &self,
+        delivery_id: &str,
+    ) -> Result<DeliveryResponse, ServiceError> {
+        let result = self.delivery_repo.find_by_id(delivery_id).await;
+        match result {
+            Ok(Some(entity)) => Ok(entity_to_dto(&entity)),
+            Ok(None) => Err(ServiceError::NotFound),
+            Err(err) => Err(ServiceError::DatabaseError(err.to_string())),
+        }
     }
 
     fn validate(dto: &CreateDeliveryRequest) -> bool {
@@ -67,9 +81,6 @@ pub enum ServiceError {
     NotFound,
     #[error("Invalid DTO")]
     InvalidDto,
-
-    #[error("Invalid customer ID")]
-    InvalidCustomerId,
     #[error("Invalid status transition")]
     InvalidStatusTransition,
     #[error("Database error: {0}")]
