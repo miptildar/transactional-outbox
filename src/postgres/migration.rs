@@ -12,9 +12,13 @@ impl MigrationRunner {
     ) -> anyhow::Result<()> {
         let mut client = pool.get_connection().await?;
 
-        migrations::runner()
+        let result = migrations::runner()
             .run_async(&mut **client)
-            .await?;
+            .await;
+
+        if let Err(error) = result {
+            panic!("Failed to apply migrations: {}", error);
+        }
 
         Ok(())
     }

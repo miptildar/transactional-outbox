@@ -8,12 +8,14 @@ use crate::controller::delivery_controller::AppState;
 use crate::postgres::connection::PgConnectionPool;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use axum::Router;
+use postgres::migration;
 
 #[tokio::main]
 async fn main() {
     let settings = AppEnvConfig::from_env().expect("сonfig error");
 
-    let postgres_connection_pool = PgConnectionPool::new(&settings.postgres).await.unwrap();
+    let postgres_connection_pool = initialize_postgres_connection_pool(&settings).await;
 
     let app_state: Arc<AppState> = Arc::new(AppState {
         delivery_service: Arc::new(service::delivery::DeliveryService::new(Arc::new(
@@ -21,15 +23,29 @@ async fn main() {
         ))),
     });
 
-    let app = controller::delivery_controller::init_router(app_state.clone());
+    let router = controller::delivery_controller::init_router(app_state.clone());
+    start_server(router, &settings).await.unwrap();
+}
 
-    let addr = settings
-        .postgres
-        .host
+async fn initialize_postgres_connection_pool(settings: &AppEnvConfig) -> PgConnectionPool {
+    let postgres_connection_pool = PgConnectionPool::new(&settings.postgres).await.unwrap();
+    migration::MigrationRunner::run_migrations(&postgres_connection_pool).await.unwrap();
+    
+    postgres_connection_pool
+}
+
+async fn start_server(router: Router, settings: &AppEnvConfig) -> anyhow::Result<()> {
+    let addr = format!("{}:{}", settings.server.host, settings.server.port)
         .parse::<SocketAddr>()
-        .expect("Invalid socket address");
+        .map_err(|e| anyhow::anyhow!("Invalid socket address: {}", e))?;
+
     println!("Listening on {}", addr);
-    axum::serve(tokio::net::TcpListener::bind(addr).await.unwrap(), app)
-        .await
-        .unwrap();
+
+    let listener = tokio::net::TcpListener::bind(addr).await
+        .map_err(|e| anyhow::anyhow!("Failed to bind to address: {}", e))?;
+
+    axum::serve(listener, router).await
+        .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
+
+    Ok(())
 }
