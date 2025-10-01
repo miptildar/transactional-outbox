@@ -1,0 +1,47 @@
+version: '3.8'
+networks:
+  delivery-service-network:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:15.13-bookworm
+    container_name: delivery-postgres
+    networks:
+      - delivery-service-network
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=deliveries
+      - POSTGRES_USER=delivery_username
+      - POSTGRES_PASSWORD=passw0rd
+    volumes:
+      - ./postgresql:/docker-entrypoint-initdb.d
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.8.0
+    container_name: delivery-zookeeper
+    networks:
+      - delivery-service-network
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: delivery-kafka
+    networks:
+      - delivery-service-network
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1

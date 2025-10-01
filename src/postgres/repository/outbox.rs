@@ -9,4 +9,8 @@ impl OutboxRepository {
     pub fn new(pool: Arc<PgConnectionPool>) -> Self {
         Self { pool }
     }
+
+    pub async fn create(&self) {
+
+    }
 }
