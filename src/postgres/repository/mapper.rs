@@ -19,6 +19,7 @@ fn map_row<T>(row: &Row, idx: usize, column_name: &str) -> Result<T, RepositoryE
 where
     T: for<'a> tokio_postgres::types::FromSql<'a>,
 {
-    row.try_get(idx).map_err(|e| RepositoryError::ParseError(format!("{}: {}", column_name, e)))
+    row.try_get(idx)
+        .map_err(|e| RepositoryError::ParseError(format!("{}: {}", column_name, e)))
 }
 

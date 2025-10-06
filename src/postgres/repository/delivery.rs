@@ -1,8 +1,9 @@
 use crate::postgres::model::entity::DeliveryEntity;
-use crate::postgres::connection::PgConnectionPool;
 use crate::postgres::model::result::RepositoryError;
 use crate::postgres::repository::mapper::row_to_delivery_entity;
-use std::sync::Arc;
+use chrono::Utc;
+use deadpool_postgres::Client;
+use tokio_postgres::Transaction;
 
 const INSERT_DELIVERY_ENTITY: &'static str =
     "INSERT INTO deliveries (id, order_id, address, status) \
@@ -12,19 +13,19 @@ const INSERT_DELIVERY_ENTITY: &'static str =
 const FIND_DELIVERY_BY_ID: &'static str =
     "SELECT id, order_id, address, status, created_at, updated_at FROM deliveries WHERE id = $1";
 
-pub struct DeliveryRepository {
-    pool: Arc<PgConnectionPool>,
-}
+pub struct DeliveryRepository;
 
 impl DeliveryRepository {
-    pub fn new(pool: Arc<PgConnectionPool>) -> Self {
-        Self { pool }
+    pub fn new() -> Self {
+        Self
     }
 
-    pub async fn save(&self, entity: DeliveryEntity) -> Result<DeliveryEntity, RepositoryError> {
-        let client = self.pool.get_connection().await?;
-
-        let row = client
+    pub async fn save(
+        &self,
+        tx: &Transaction<'_>,
+        entity: &DeliveryEntity,
+    ) -> Result<DeliveryEntity, RepositoryError> {
+        let row = tx
             .query_one(
                 INSERT_DELIVERY_ENTITY,
                 &[
@@ -32,21 +33,21 @@ impl DeliveryRepository {
                     &entity.order_id,
                     &entity.address,
                     &entity.status,
+                    &Utc::now().to_string(),
+                    &Utc::now().to_string()
                 ],
             )
             .await?;
 
-        Ok(
-            row_to_delivery_entity(&row)?
-        )
+        Ok(row_to_delivery_entity(&row)?)
     }
 
-    pub async fn find_by_id(&self, id: &str) -> Result<Option<DeliveryEntity>, RepositoryError> {
-        let client = self.pool.get_connection().await?;
-
-        let rows = client.query(
-            FIND_DELIVERY_BY_ID, &[&id]
-        ).await?;
+    pub async fn find_by_id(
+        &self,
+        client: Client,
+        id: &str,
+    ) -> Result<Option<DeliveryEntity>, RepositoryError> {
+        let rows = client.query(FIND_DELIVERY_BY_ID, &[&id]).await?;
 
         if let Some(row) = rows.first() {
             Ok(Some(row_to_delivery_entity(row)?))

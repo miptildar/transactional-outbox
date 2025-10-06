@@ -16,8 +16,8 @@ pub struct DeliveryService {
 impl DeliveryService {
     pub fn new(pool: Arc<PgConnectionPool>) -> Self {
         Self {
-            delivery_repo: DeliveryRepository::new(pool.clone()),
-            outbox_repo: OutboxRepository::new(pool.clone()),
+            delivery_repo: DeliveryRepository::new(),
+            outbox_repo: OutboxRepository::new(),
             pool,
         }
     }
@@ -26,7 +26,7 @@ impl DeliveryService {
         &self,
         request: CreateDeliveryRequest,
     ) -> Result<DeliveryResponse, ServiceError> {
-        if (!Self::validate(&request)) {
+        if !Self::validate(&request) {
             return Err(ServiceError::InvalidDto);
         }
 
@@ -39,12 +39,39 @@ impl DeliveryService {
             updated_at: None,
         };
 
-        let result = self.delivery_repo.save(delivery_entity).await;
-        if (result.is_err()) {
+        let client = self.pool.get_connection().await;
+        if client.is_err() {
+            let error_string = client.err().unwrap().to_string();
+            tracing::error!("Failed to get Postgres connection: {}", error_string.clone());
+            return Err(ServiceError::DatabaseError(error_string));
+        }
+
+        let mut client = client.unwrap();
+        let tx = client.transaction().await.map_err(|e| {
+            tracing::error!("Failed to start transaction: {}", e);
+            ServiceError::DatabaseError(e.to_string())
+        })?;
+        
+        let result = self.delivery_repo.save(&tx, &delivery_entity).await;
+        if result.is_err() {
+            let _ = tx.rollback().await;
             let error = result.err().unwrap().to_string();
-            tracing::error!("Database error: {}", error.clone());
+            tracing::error!("Failed to save delivery entity: {}", error.clone());
             return Err(ServiceError::DatabaseError(error));
         }
+
+        let outbox_result = self.outbox_repo.save(&tx, &delivery_entity).await;
+        if outbox_result.is_err() {
+            let _ = tx.rollback().await;
+            let error = outbox_result.err().unwrap().to_string();
+            tracing::error!("Failed to save outbox entity: {}", error.clone());
+            return Err(ServiceError::DatabaseError(error));
+        }
+
+        tx.commit().await.map_err(|e| {
+            tracing::error!("Failed to commit transaction: {}", e);
+            ServiceError::DatabaseError(e.to_string())
+        })?;
 
         let actual_entity = &result.unwrap();
 
@@ -55,7 +82,14 @@ impl DeliveryService {
         &self,
         delivery_id: &str,
     ) -> Result<DeliveryResponse, ServiceError> {
-        let result = self.delivery_repo.find_by_id(delivery_id).await;
+        let client = self.pool.get_connection().await;
+        if client.is_err() {
+            let error = client.err().unwrap().to_string();
+            tracing::error!("Failed to get connection: {}", error.clone());
+            return Err(ServiceError::DatabaseError(error));
+        }
+
+        let result = self.delivery_repo.find_by_id(client.unwrap(), delivery_id).await;
         match result {
             Ok(Some(entity)) => Ok(entity_to_dto(&entity)),
             Ok(None) => Err(ServiceError::NotFound),
@@ -68,12 +102,12 @@ impl DeliveryService {
     }
 
     fn validate(dto: &CreateDeliveryRequest) -> bool {
-        if (dto.address.is_none() || dto.order_id.is_none() || dto.items.is_none()) {
+        if dto.address.is_none() || dto.order_id.is_none() || dto.items.is_none() {
             return false;
         }
 
-        let valid_order_id = dto.order_id.as_ref().unwrap().trim().is_empty();
-        let valid_address = dto.address.as_ref().unwrap().trim().is_empty();
+        let valid_order_id = !dto.order_id.as_ref().unwrap().trim().is_empty();
+        let valid_address = !dto.address.as_ref().unwrap().trim().is_empty();
 
         valid_order_id && valid_address
     }

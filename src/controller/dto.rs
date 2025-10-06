@@ -13,15 +13,18 @@ pub struct DeliveryResponse {
     pub order_id: String,
     pub address: String,
     pub status: String,
-    pub items: Vec<OrderItemDto>
+    pub items: Vec<OrderItemDto>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 #[derive(Serialize)]
 #[derive(Deserialize)]
 pub struct OrderItemDto {
+    pub product_id: String,
+    pub quantity: u32,
+    pub price: f64,
 }
-
-
 
 #[derive(Serialize)]
 pub struct ErrorResponseDto {

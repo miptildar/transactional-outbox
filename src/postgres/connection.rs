@@ -1,5 +1,4 @@
 use crate::config::app_config::PostgresEnvConfig;
-use crate::postgres::migration::migrations;
 use deadpool_postgres::{Config, Object, Pool, PoolError, Runtime};
 use tokio_postgres::NoTls;
 
@@ -29,16 +28,6 @@ impl PgConnectionPool {
 
     pub async fn get_connection(&self) -> Result<Object, PoolError> {
         self.pool.get().await
-    }
-
-    pub async fn run_migrations(&self) -> anyhow::Result<()> {
-        let mut client = self.get_connection().await?;
-
-        migrations::runner()
-            .run_async(&mut **client)
-            .await?;
-
-        Ok(())
     }
 }
 
