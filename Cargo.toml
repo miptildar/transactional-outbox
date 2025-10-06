@@ -23,3 +23,5 @@ strum = "0.27"
 strum_macros = "0.27"
 thiserror = "2.0.16"
 testcontainers = { version = "^0.25.0", features = ["default"]}
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "fmt", "json"] }

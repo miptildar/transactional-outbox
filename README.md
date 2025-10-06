@@ -8,4 +8,6 @@ Tasks:
 - [ ] Implement rest controllers
 - [ ] Implement Kafka producer
 - [ ] Integration tests
+- [ ] Collecting logs
+- [ ] Monitoring tools
 

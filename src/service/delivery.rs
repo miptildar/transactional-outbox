@@ -41,9 +41,9 @@ impl DeliveryService {
 
         let result = self.delivery_repo.save(delivery_entity).await;
         if (result.is_err()) {
-            return Err(ServiceError::DatabaseError(
-                result.err().unwrap().to_string(),
-            ));
+            let error = result.err().unwrap().to_string();
+            tracing::error!("Database error: {}", error.clone());
+            return Err(ServiceError::DatabaseError(error));
         }
 
         let actual_entity = &result.unwrap();
@@ -59,7 +59,11 @@ impl DeliveryService {
         match result {
             Ok(Some(entity)) => Ok(entity_to_dto(&entity)),
             Ok(None) => Err(ServiceError::NotFound),
-            Err(err) => Err(ServiceError::DatabaseError(err.to_string())),
+            Err(err) => {
+                let error = err.to_string();
+                tracing::error!("Database error: {}", error.clone());
+                Err(ServiceError::DatabaseError(error))
+            },
         }
     }
 
