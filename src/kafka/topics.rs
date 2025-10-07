@@ -1,0 +1,1 @@
+pub const DELIVERY_TOPIC: &'static str = "delivery_topic";

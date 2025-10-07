@@ -65,15 +65,17 @@ impl Display for OutboxMessageStatus {
 }
 
 pub struct OutboxMessageEntity {
-    pub aggregate_id: String,
+    pub id: String,
     pub aggregate_type: String,
     pub topic: String,
     pub key: String,
     pub payload: serde_json::Value,
     pub status: String,
-    pub processed_at: Option<DateTime<Utc>>,
     pub processing_attempts: u8,
     pub last_error: Option<String>,
+    pub processed_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Serialize)]

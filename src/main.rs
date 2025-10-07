@@ -2,6 +2,7 @@ mod config;
 mod controller;
 mod postgres;
 mod service;
+mod kafka;
 
 use crate::config::app_config::AppEnvConfig;
 use crate::controller::delivery_controller::AppState;
