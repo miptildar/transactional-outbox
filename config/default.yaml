@@ -8,3 +8,8 @@ database:
   username: delivery_username
   password: passw0rd
   max_size: 4
+  
+kafka:
+  bootstrap_servers: localhost:9092
+  schema_registry_url: http://localhost:8081
+  retries: 3

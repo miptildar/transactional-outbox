@@ -1,6 +1,6 @@
 version: '3.8'
 networks:
-  delivery-service-network:
+  rust-service-network:
     driver: bridge
 
 services:
@@ -8,7 +8,7 @@ services:
     image: postgres:15.13-bookworm
     container_name: delivery-postgres
     networks:
-      - delivery-service-network
+      - rust-service-network
     ports:
       - "5432:5432"
     environment:
@@ -20,28 +20,69 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.8.0
-    container_name: delivery-zookeeper
+    container_name: zookeeper
     networks:
-      - delivery-service-network
+      - rust-service-network
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
     image: confluentinc/cp-kafka:7.8.0
-    container_name: delivery-kafka
+    container_name: kafka
     networks:
-      - delivery-service-network
+      - rust-service-network
     ports:
       - "9092:9092"
+      - "9093:9093"
     depends_on:
       - zookeeper
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    command: >
+      bash -c "
+      /etc/confluent/docker/run &
+      echo 'Waiting for Kafka to start...';
+      while ! kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1; do
+        sleep 1;
+      done;
+      echo 'Kafka is ready, creating topics...';
+      kafka-topics --create --if-not-exists --topic my_topic_name --partitions 1 --replication-factor 1 --bootstrap-server localhost:9092;
+      echo 'Topics created successfully!';
+      wait
+      "
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.0
+    container_name: schema-registry
+    networks:
+      - rust-service-network
+    depends_on:
+      - kafka
+    ports:
+      - "8087:8087"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8087
+
+  avro-loader:
+    image: alpine:3.19
+    container_name: avro-loader
+    networks:
+      - rust-service-network
+    depends_on:
+      - schema-registry
+    volumes:
+      - ./avro:/schemas:ro
+      - ./scripts/register-schemas.sh:/register-schemas.sh:ro
+    restart: "no"
+    command: [ "sh", "/register-schemas.sh" ]

@@ -17,9 +17,17 @@ pub struct PostgresEnvConfig {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct KafkaEnvConfig {
+    pub bootstrap_servers: String,
+    pub schema_registry_url: String,
+    pub retries: i32,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct AppEnvConfig {
     pub server: ServerEnvConfig,
     pub postgres: PostgresEnvConfig,
+    pub kafka: KafkaEnvConfig,
 }
 
 impl AppEnvConfig {
