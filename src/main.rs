@@ -4,7 +4,7 @@ mod postgres;
 mod service;
 mod kafka;
 
-use crate::config::app_config::AppEnvConfig;
+use crate::config::app_config::AppConfig;
 use crate::controller::delivery_controller::AppState;
 use crate::postgres::connection::PgConnectionPool;
 use std::net::SocketAddr;
@@ -14,10 +14,11 @@ use tracing_subscriber::EnvFilter;
 use postgres::migration;
 
 #[tokio::main]
-async fn main() {
-    initialize_logging().await;
+async fn main() -> () {
+    initialize_logging();
 
-    let settings = AppEnvConfig::from_env().expect("сonfig error");
+    let settings = AppConfig::load()
+        .unwrap_or_else(|e| panic!("Config error: {}", e));
 
     let postgres_connection_pool = initialize_postgres_connection_pool(&settings).await;
 
@@ -28,10 +29,10 @@ async fn main() {
     });
 
     let router = controller::delivery_controller::init_router(app_state.clone());
-    start_server(router, &settings).await.unwrap();
+    start_server(router, &settings).await;
 }
 
-async fn initialize_logging() {
+fn initialize_logging() {
     tracing_subscriber::fmt()
         .json()
         .with_current_span(true)
@@ -40,25 +41,26 @@ async fn initialize_logging() {
         .init();
 }
 
-async fn initialize_postgres_connection_pool(settings: &AppEnvConfig) -> PgConnectionPool {
-    let postgres_connection_pool = PgConnectionPool::new(&settings.postgres).await.unwrap();
-    migration::MigrationRunner::run_migrations(&postgres_connection_pool).await.unwrap();
+async fn initialize_postgres_connection_pool(settings: &AppConfig) -> PgConnectionPool {
+    let postgres_connection_pool = PgConnectionPool::new(&settings.postgres).await
+        .unwrap_or_else(|e| panic!("Failed to create Postgres connection pool: {}", e));
+
+    migration::MigrationRunner::run_migrations(&postgres_connection_pool).await
+        .unwrap_or_else(|e| panic!("Failed to run DB migrations: {}", e));
 
     postgres_connection_pool
 }
 
-async fn start_server(router: Router, settings: &AppEnvConfig) -> anyhow::Result<()> {
+async fn start_server(router: Router, settings: &AppConfig) -> () {
     let addr = format!("{}:{}", settings.server.host, settings.server.port)
         .parse::<SocketAddr>()
-        .map_err(|e| anyhow::anyhow!("Invalid socket address: {}", e))?;
+        .unwrap_or_else(|e| panic!("Invalid socket address: {}", e));
 
-    println!("Listening on {}", addr);
+    tracing::info!(address = %addr, "Server started");
 
     let listener = tokio::net::TcpListener::bind(addr).await
-        .map_err(|e| anyhow::anyhow!("Failed to bind to address: {}", e))?;
+        .unwrap_or_else(|e| panic!("Failed to bind to address: {}", e));
 
     axum::serve(listener, router).await
-        .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
-
-    Ok(())
+        .unwrap_or_else(|e| panic!("Server error: {}", e));
 }

@@ -6,7 +6,7 @@ networks:
 services:
   postgres:
     image: postgres:15.13-bookworm
-    container_name: delivery-postgres
+    container_name: postgres-rs-transact-outbox
     networks:
       - rust-service-network
     ports:
@@ -20,7 +20,7 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.8.0
-    container_name: zookeeper
+    container_name: zookeeper-rs-transact-outbox
     networks:
       - rust-service-network
     environment:
@@ -29,7 +29,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.8.0
-    container_name: kafka
+    container_name: kafka-rs-transact-outbox
     networks:
       - rust-service-network
     ports:
@@ -62,7 +62,7 @@ services:
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.7.0
-    container_name: schema-registry
+    container_name: schema-registry-rs-transact-outbox
     networks:
       - rust-service-network
     depends_on:
@@ -76,7 +76,7 @@ services:
 
   avro-loader:
     image: alpine:3.19
-    container_name: avro-loader
+    container_name: avro-loader-rs-transact-outbox
     networks:
       - rust-service-network
     depends_on:

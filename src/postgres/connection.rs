@@ -1,4 +1,4 @@
-use crate::config::app_config::PostgresEnvConfig;
+use crate::config::app_config::PostgresConfig;
 use deadpool_postgres::{Config, Object, Pool, PoolError, Runtime};
 use tokio_postgres::NoTls;
 
@@ -8,7 +8,7 @@ pub struct PgConnectionPool {
 
 impl PgConnectionPool {
 
-    pub async fn new(environment_config: &PostgresEnvConfig) -> Result<Self, deadpool_postgres::CreatePoolError> {
+    pub async fn new(environment_config: &PostgresConfig) -> Result<Self, deadpool_postgres::CreatePoolError> {
         let mut pool_config = Config::new();
         pool_config.host = Some(environment_config.host.clone());
         pool_config.dbname = Some(environment_config.db_name.clone());
