@@ -1,6 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct Address {
     pub city: String,
     pub street: String,
@@ -9,11 +10,13 @@ pub struct Address {
     pub postal_code: String,
 }
 
+#[derive(Debug)]
 pub struct Recipient {
     pub name: String,
     pub phone: String,
 }
 
+#[derive(Debug)]
 pub struct Delivery {
     pub id: Uuid,
     pub order_id: String,
@@ -30,6 +33,7 @@ pub struct Delivery {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug)]
 pub struct DeliveryItem {
     pub id: Uuid,
     pub sku: String,
@@ -97,4 +101,19 @@ impl TryFrom<&str> for DeliveryStatus {
             other => Err(format!("Unknown delivery status: {}", other)),
         }
     }
-} 
+}
+
+impl std::fmt::Display for DeliveryStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug)]
+pub struct DeliveryStatusHistory {
+    pub id: Uuid,
+    pub delivery_id: Uuid,
+    pub status: DeliveryStatus,
+    pub reason: Option<String>,
+    pub changed_at: DateTime<Utc>,
+}

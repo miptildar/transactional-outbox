@@ -1,4 +1,3 @@
 pub mod result;
-pub mod entity;
-mod delivery;
-mod outbox;
+pub mod delivery;
+pub mod outbox;
