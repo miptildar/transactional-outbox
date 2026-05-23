@@ -4,8 +4,7 @@ use crate::postgres::repository::delivery::DeliveryRepository;
 use crate::postgres::repository::outbox::OutboxRepository;
 use std::sync::Arc;
 use uuid::Uuid;
-use transactional_outbox::postgres::model::delivery::{Address, Delivery};
-use crate::postgres::model::delivery::{DeliveryItem, DeliveryStatus, Recipient};
+use crate::postgres::model::delivery::{Address, Delivery, DeliveryItem, DeliveryStatus, Recipient};
 
 pub struct DeliveryService {
     delivery_repo: DeliveryRepository,
@@ -26,11 +25,6 @@ impl DeliveryService {
         &self,
         request: CreateDeliveryRequest,
     ) -> Result<DeliveryResponse, ServiceError> {
-        let order_id = request.order_id
-            .filter(|s| !s.trim().is_empty())
-            .ok_or(ServiceError::InvalidDto)?;
-
-
         let address = Address {
             city: request.address.city,
             street: request.address.street,
@@ -57,7 +51,7 @@ impl DeliveryService {
         let now = chrono::Utc::now();
         let delivery_entity = Delivery {
             id:  Uuid::new_v4(),
-            order_id,
+            order_id: request.order_id,
             courier_id: None,
             recipient,
             address,
@@ -130,6 +124,8 @@ pub enum ServiceError {
     NotFound,
     #[error("Invalid DTO")]
     InvalidDto,
+    #[error("Invalid Argument")]
+    InvalidArgument,
     #[error("Invalid status transition")]
     InvalidStatusTransition,
     #[error("Database error: {0}")]

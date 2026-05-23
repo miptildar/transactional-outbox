@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub struct AppState {
     pub delivery_service: Arc<DeliveryService>,
@@ -30,11 +31,15 @@ async fn create_delivery(
     Ok(Json(response))
 }
 
-async fn get_delivery_by_id(State(state): State<Arc<AppState>>,
-                            Path(delivery_id): Path<String>) -> Result<Json<DeliveryResponse>, (StatusCode, Json<ErrorResponseDto>)> {
+async fn get_delivery_by_id(
+    State(state): State<Arc<AppState>>,
+    Path(delivery_id): Path<String>,
+) -> Result<Json<DeliveryResponse>, (StatusCode, Json<ErrorResponseDto>)> {
+    let uuid = Uuid::parse_str(&delivery_id)
+        .map_err(|_| create_error_response(&ServiceError::InvalidArgument))?;
     
     let response = state.delivery_service
-        .get_delivery_by_id(&delivery_id)
+        .get_delivery_by_id(uuid)
         .await
         .map_err(|e| create_error_response(&e))?;
     
@@ -61,6 +66,16 @@ fn create_error_response(error: &ServiceError) -> (StatusCode, Json<ErrorRespons
                     message: error.to_string(),
                 })
             )
+        }
+
+        ServiceError::InvalidArgument => {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponseDto {
+                    error: "Bad Request",
+                    message: error.to_string(),
+                })
+            )       
         }
 
         ServiceError::InvalidStatusTransition => {
