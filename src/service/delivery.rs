@@ -1,11 +1,11 @@
 use crate::controller::dto::{CreateDeliveryRequest, DeliveryResponse};
 use crate::postgres::connection::PgConnectionPool;
-use crate::postgres::model::entity::{DeliveryEntity, DeliveryStatus};
 use crate::postgres::repository::delivery::DeliveryRepository;
 use crate::postgres::repository::outbox::OutboxRepository;
-use crate::service::mapper::entity_to_dto;
 use std::sync::Arc;
 use uuid::Uuid;
+use transactional_outbox::postgres::model::delivery::{Address, Delivery};
+use crate::postgres::model::delivery::{DeliveryItem, DeliveryStatus, Recipient};
 
 pub struct DeliveryService {
     delivery_repo: DeliveryRepository,
@@ -29,18 +29,46 @@ impl DeliveryService {
         let order_id = request.order_id
             .filter(|s| !s.trim().is_empty())
             .ok_or(ServiceError::InvalidDto)?;
-        let address = request.address
-            .filter(|s| !s.trim().is_empty())
-            .ok_or(ServiceError::InvalidDto)?;
-        let _ = request.items.ok_or(ServiceError::InvalidDto)?;
 
-        let delivery_entity = DeliveryEntity {
-            delivery_id: Uuid::new_v4().to_string(),
+
+        let address = Address {
+            city: request.address.city,
+            street: request.address.street,
+            building: request.address.building,
+            apartment: request.address.apartment,
+            postal_code: request.address.postal_code,
+        };
+
+        let recipient = Recipient {
+            name: request.recipient.name,
+            phone: request.recipient.phone,
+        };
+
+        let delivery_items = request.items.into_iter()
+            .map(|dto| DeliveryItem {
+                id: Uuid::new_v4(),
+                sku: dto.sku,
+                name: dto.name,
+                quantity: dto.quantity,
+                weight_grams: dto.weight_grams,
+            })
+            .collect();
+
+        let now = chrono::Utc::now();
+        let delivery_entity = Delivery {
+            id:  Uuid::new_v4(),
             order_id,
+            courier_id: None,
+            recipient,
             address,
-            status: DeliveryStatus::Pending.to_uppercase_string(),
-            created_at: None,
-            updated_at: None,
+            status: DeliveryStatus::Pending,
+            scheduled_date: request.scheduled_date,
+            delivered_at: None,
+            cancelled_at: None,
+            cancellation_reason: None,
+            items: delivery_items,
+            created_at: now,
+            updated_at: now,
         };
 
         let mut client = self.pool.get_connection().await.map_err(|e| {
@@ -53,7 +81,7 @@ impl DeliveryService {
             ServiceError::DatabaseError(e.to_string())
         })?;
 
-        let saved = self.delivery_repo.save(&tx, &delivery_entity).await
+        self.delivery_repo.create(&tx, &delivery_entity).await
             .map_err(|e| {
                 tracing::error!("Failed to save delivery: {}", e);
                 ServiceError::DatabaseError(e.to_string())
@@ -70,22 +98,22 @@ impl DeliveryService {
             ServiceError::DatabaseError(e.to_string())
         })?;
 
-        Ok(entity_to_dto(&saved))
+        Ok(DeliveryResponse::from(&delivery_entity))
     }
 
     pub async fn get_delivery_by_id(
         &self,
-        delivery_id: &str,
+        delivery_id: Uuid,
     ) -> Result<DeliveryResponse, ServiceError> {
         let client = self.pool.get_connection().await.map_err(|e| {
             tracing::error!("Failed to get connection: {}", e);
             ServiceError::DatabaseError(e.to_string())
         })?;
 
-        let result = self.delivery_repo.find_by_id(client, delivery_id).await;
+        let result = self.delivery_repo.find_by_id(&client, delivery_id).await;
 
         match result {
-            Ok(Some(entity)) => Ok(entity_to_dto(&entity)),
+            Ok(Some(entity)) => Ok(DeliveryResponse::from(&entity)),
             Ok(None) => Err(ServiceError::NotFound),
             Err(err) => {
                 let error = err.to_string();
