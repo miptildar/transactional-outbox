@@ -137,6 +137,7 @@ fn row_to_delivery(row: &Row) -> Result<Delivery, RepositoryError> {
     let status = DeliveryStatus::try_from(status_str.as_str())
         .map_err(|e| RepositoryError::ParseError(e))?;
 
+    // todo optional fields
     Ok(Delivery {
         id: row.try_get(delivery_columns::ID)?,
         order_id: row.try_get(delivery_columns::ORDER_ID)?,
